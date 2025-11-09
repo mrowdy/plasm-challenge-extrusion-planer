@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from extrusion_planner.models import HotendConfig, MaterialConfig, Segment
-from extrusion_planner.pressure import DecayModel, PressureModel
+from extrusion_planner.pressure import PRESSURE_THRESHOLD, DecayModel, PressureModel
 
 
 def _calculate_cumulative_time(segments: List[Segment]) -> np.ndarray:
@@ -93,7 +93,11 @@ def plot_comparison(
         label="Pressure Level",
     )
     ax3.axhline(
-        0.8, color="orange", linestyle="--", alpha=0.7, label="High Pressure Threshold (0.8)"
+        PRESSURE_THRESHOLD,
+        color="orange",
+        linestyle="--",
+        alpha=0.7,
+        label=f"High Pressure Threshold ({PRESSURE_THRESHOLD})",
     )
     ax3.set_ylabel("Pressure Level (0-1)")
     ax3.set_xlabel("Time (seconds)")
