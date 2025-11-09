@@ -1,7 +1,4 @@
-"""Core data models for extrusion planning.
-
-This package contains all model classes and utility functions.
-"""
+"""Core data models."""
 
 from extrusion_planner.models.hotend import HotendConfig
 from extrusion_planner.models.material import (

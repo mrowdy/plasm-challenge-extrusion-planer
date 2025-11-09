@@ -1,4 +1,4 @@
-"""Extrusion planning system for 3D printing with hotend responsiveness compensation."""
+"""Extrusion planning system for 3D printing."""
 
 from .models import HotendConfig, MaterialConfig, Segment
 from .planner import ExtrusionPlanner
