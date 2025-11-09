@@ -60,6 +60,7 @@ def generate_example_plot(
     """
     if output_dir is None:
         import inspect
+
         caller_frame = inspect.stack()[1]
         caller_file = caller_frame.filename
         output_dir = os.path.dirname(os.path.abspath(caller_file))

@@ -66,8 +66,7 @@ def analyze_combination(planner, segments, hotend_profile, material_type, save_p
     adjusted = planner.process(segments, hotend, material)
 
     adjustments = sum(
-        1 for orig, adj in zip(segments, adjusted)
-        if abs(orig.feed_rate - adj.feed_rate) > 0.1
+        1 for orig, adj in zip(segments, adjusted) if abs(orig.feed_rate - adj.feed_rate) > 0.1
     )
 
     max_reduction = 0.0
@@ -84,8 +83,10 @@ def analyze_combination(planner, segments, hotend_profile, material_type, save_p
     # Display results
     print(f"\n{hotend_profile.value.replace('_', ' ').title()} + {material.name}")
     print("  " + "-" * 70)
-    print(f"  Hotend: {hotend.max_volumetric_flow} mm³/s max, "
-          f"{hotend.response_time*1000:.0f}ms response")
+    print(
+        f"  Hotend: {hotend.max_volumetric_flow} mm³/s max, "
+        f"{hotend.response_time * 1000:.0f}ms response"
+    )
     print(f"  Material: Shore {material.shore_hardness}")
     print(f"  Segments adjusted: {adjustments}/{len(segments)}")
     print(f"  Max feed reduction: {max_reduction:.1f}%")
@@ -97,11 +98,11 @@ def analyze_combination(planner, segments, hotend_profile, material_type, save_p
     for i, (orig, adj) in enumerate(zip(segments, adjusted)):
         change = (1 - adj.feed_rate / orig.feed_rate) * 100 if orig.feed_rate > 0 else 0.0
         marker = " *" if abs(change) > 0.1 else ""
-        print(f"  {i:<4} {orig.feed_rate:<12.1f} {adj.feed_rate:<12.1f} "
-              f"{change:>6.1f}{marker}")
+        print(f"  {i:<4} {orig.feed_rate:<12.1f} {adj.feed_rate:<12.1f} {change:>6.1f}{marker}")
 
     if save_plot:
         import os
+
         plot_name = f"{hotend_profile.value}_{material_type.value}"
         script_dir = os.path.dirname(os.path.abspath(__file__))
         filename = os.path.join(script_dir, f"custom_hotend_{plot_name}.png")
@@ -132,42 +133,29 @@ def main():
     print("SCENARIO 1: WORST CASE (Maximum Compensation)")
     print("=" * 80)
     analyze_combination(
-        planner, segments,
-        HotendProfile.STANDARD,
-        MaterialType.TPU_SHORE_30,
-        save_plot=True
+        planner, segments, HotendProfile.STANDARD, MaterialType.TPU_SHORE_30, save_plot=True
     )
 
     print("\n" + "=" * 80)
     print("SCENARIO 2: BEST CASE (Minimal Compensation)")
     print("=" * 80)
     analyze_combination(
-        planner, segments,
-        HotendProfile.INDUCTION,
-        MaterialType.PLA,
-        save_plot=True
+        planner, segments, HotendProfile.INDUCTION, MaterialType.PLA, save_plot=True
     )
 
     print("\n" + "=" * 80)
     print("SCENARIO 3: MID-RANGE (Moderate Compensation)")
     print("=" * 80)
     analyze_combination(
-        planner, segments,
-        HotendProfile.STANDARD,
-        MaterialType.PETG,
-        save_plot=True
+        planner, segments, HotendProfile.STANDARD, MaterialType.PETG, save_plot=True
     )
 
     print("\n" + "=" * 80)
     print("SCENARIO 4: FAST HOTEND + SOFT MATERIAL")
     print("=" * 80)
     analyze_combination(
-        planner, segments,
-        HotendProfile.INDUCTION,
-        MaterialType.TPU_SHORE_30,
-        save_plot=True
+        planner, segments, HotendProfile.INDUCTION, MaterialType.TPU_SHORE_30, save_plot=True
     )
-
 
 
 if __name__ == "__main__":

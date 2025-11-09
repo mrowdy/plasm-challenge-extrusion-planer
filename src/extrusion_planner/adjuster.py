@@ -17,6 +17,9 @@ def limit_feed_rate(segment: Segment, hotend: HotendConfig) -> Segment:
     if current_flow <= hotend.max_volumetric_flow:
         return segment
 
+    # Derive max feed rate from volumetric flow formula:
+    # flow = extrusion / time, where time = (length / feed_rate) * SECONDS_PER_MINUTE
+    # Solving for feed_rate: feed_rate = (flow * length * SECONDS_PER_MINUTE) / extrusion
     max_feed_rate = (
         hotend.max_volumetric_flow * segment.length * SECONDS_PER_MINUTE
     ) / segment.extrusion
@@ -28,6 +31,7 @@ def limit_feed_rate(segment: Segment, hotend: HotendConfig) -> Segment:
     )
 
 
+# Number of segments before peak to begin gradual slowdown
 PREEMPTIVE_RAMPDOWN_SEGMENTS = 3
 
 
@@ -53,6 +57,7 @@ def apply_preemptive_slowdown(
             required_slowdown = hotend.max_volumetric_flow / prediction.max_flow
             ramp_start = max(0, peak_global_index - PREEMPTIVE_RAMPDOWN_SEGMENTS)
 
+            # Linear ramp: gradually slow from 1.0x to required_slowdown
             for ramp_idx in range(ramp_start, peak_global_index + 1):
                 if ramp_idx == peak_global_index:
                     factor = required_slowdown
@@ -60,11 +65,13 @@ def apply_preemptive_slowdown(
                     distance_from_peak = peak_global_index - ramp_idx
                     total_ramp_distance = peak_global_index - ramp_start
                     if total_ramp_distance > 0:
+                        # Progress from 0.0 (far from peak) to 1.0 (at peak)
                         ramp_progress = 1.0 - (distance_from_peak / total_ramp_distance)
                         factor = 1.0 + ramp_progress * (required_slowdown - 1.0)
                     else:
                         factor = required_slowdown
 
+                # When multiple peaks overlap, use most restrictive (minimum) slowdown
                 if ramp_idx not in slowdown_plan:
                     slowdown_plan[ramp_idx] = factor
                 else:

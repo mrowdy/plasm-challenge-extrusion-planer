@@ -14,6 +14,7 @@ class Segment:
     extrusion: float
 
     def __post_init__(self) -> None:
+        """Validate segment parameters."""
         if self.length <= 0:
             raise ValueError(f"length must be positive, got {self.length}")
         if self.feed_rate <= 0:

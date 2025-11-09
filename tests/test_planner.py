@@ -23,9 +23,7 @@ class TestExtrusionPlannerInit:
 
     def test_custom_compensation_strategy(self):
         """Test planner with custom compensation strategy."""
-        planner = ExtrusionPlanner(
-            compensation_strategy=CompensationStrategy.PRESSURE_LEVEL
-        )
+        planner = ExtrusionPlanner(compensation_strategy=CompensationStrategy.PRESSURE_LEVEL)
         assert planner.compensation_strategy == CompensationStrategy.PRESSURE_LEVEL
 
     def test_invalid_window_size(self):
@@ -190,9 +188,7 @@ class TestExtrusionPlannerProcess:
             Segment(length=10.0, feed_rate=100.0, extrusion=0.3),
         ]
 
-        planner_combined = ExtrusionPlanner(
-            compensation_strategy=CompensationStrategy.COMBINED
-        )
+        planner_combined = ExtrusionPlanner(compensation_strategy=CompensationStrategy.COMBINED)
         planner_material = ExtrusionPlanner(
             compensation_strategy=CompensationStrategy.MATERIAL_FACTOR
         )
@@ -200,15 +196,9 @@ class TestExtrusionPlannerProcess:
             compensation_strategy=CompensationStrategy.PRESSURE_LEVEL
         )
 
-        result_combined = planner_combined.process(
-            segments, standard_hotend, soft_material
-        )
-        result_material = planner_material.process(
-            segments, standard_hotend, soft_material
-        )
-        result_pressure = planner_pressure.process(
-            segments, standard_hotend, soft_material
-        )
+        result_combined = planner_combined.process(segments, standard_hotend, soft_material)
+        result_material = planner_material.process(segments, standard_hotend, soft_material)
+        result_pressure = planner_pressure.process(segments, standard_hotend, soft_material)
 
         # All should produce valid results
         assert len(result_combined) == len(segments)
@@ -256,9 +246,7 @@ class TestExtrusionPlannerIntegration:
     def test_sustained_high_flow(self):
         """Test handling of sustained high-flow region."""
         # Create many segments that exceed flow limit
-        segments = [
-            Segment(length=10.0, feed_rate=200.0, extrusion=0.8) for _ in range(10)
-        ]
+        segments = [Segment(length=10.0, feed_rate=200.0, extrusion=0.8) for _ in range(10)]
 
         hotend = HotendConfig(max_volumetric_flow=10.0, response_time=0.08)
         material = MaterialConfig(name="PETG", shore_hardness=70)

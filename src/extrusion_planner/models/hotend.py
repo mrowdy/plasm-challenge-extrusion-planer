@@ -11,6 +11,7 @@ class HotendConfig:
     response_time: float
 
     def __post_init__(self) -> None:
+        """Validate hotend configuration."""
         if self.max_volumetric_flow <= 0:
             raise ValueError(
                 f"max_volumetric_flow must be positive, got {self.max_volumetric_flow}"

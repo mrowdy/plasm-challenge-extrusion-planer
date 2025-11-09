@@ -47,13 +47,9 @@ class TestPlotComparison:
         """Standard material config."""
         return MaterialConfig(name="PLA", shore_hardness=75)
 
-    def test_plot_comparison_creates_figure(
-        self, segments, adjusted_segments, hotend, material
-    ):
+    def test_plot_comparison_creates_figure(self, segments, adjusted_segments, hotend, material):
         """Test that plot_comparison creates a valid figure."""
-        fig = plot_comparison(
-            segments, adjusted_segments, hotend, material, show=False
-        )
+        fig = plot_comparison(segments, adjusted_segments, hotend, material, show=False)
         assert isinstance(fig, plt.Figure)
         plt.close(fig)
 
@@ -61,15 +57,11 @@ class TestPlotComparison:
         self, segments, adjusted_segments, hotend, material
     ):
         """Test that figure has 3 subplots."""
-        fig = plot_comparison(
-            segments, adjusted_segments, hotend, material, show=False
-        )
+        fig = plot_comparison(segments, adjusted_segments, hotend, material, show=False)
         assert len(fig.axes) == 3
         plt.close(fig)
 
-    def test_plot_comparison_with_custom_title(
-        self, segments, adjusted_segments, hotend, material
-    ):
+    def test_plot_comparison_with_custom_title(self, segments, adjusted_segments, hotend, material):
         """Test custom title."""
         custom_title = "My Custom Title"
         fig = plot_comparison(
@@ -83,23 +75,17 @@ class TestPlotComparison:
         with pytest.raises(ValueError, match="Cannot plot empty segment list"):
             plot_comparison([], [], hotend, material, show=False)
 
-    def test_plot_comparison_mismatched_lengths_raises_error(
-        self, segments, hotend, material
-    ):
+    def test_plot_comparison_mismatched_lengths_raises_error(self, segments, hotend, material):
         """Test that mismatched segment lists raise error."""
         with pytest.raises(ValueError, match="Segment lists must be same length"):
-            plot_comparison(
-                segments, segments[:2], hotend, material, show=False
-            )
+            plot_comparison(segments, segments[:2], hotend, material, show=False)
 
     def test_plot_comparison_single_segment(self, hotend, material):
         """Test plotting single segment."""
         single_orig = [Segment(length=10.0, feed_rate=100.0, extrusion=0.3)]
         single_adj = [Segment(length=10.0, feed_rate=90.0, extrusion=0.3)]
 
-        fig = plot_comparison(
-            single_orig, single_adj, hotend, material, show=False
-        )
+        fig = plot_comparison(single_orig, single_adj, hotend, material, show=False)
         assert isinstance(fig, plt.Figure)
         plt.close(fig)
 
@@ -120,9 +106,7 @@ class TestPlotComparison:
     def test_plot_comparison_soft_material(self, segments, adjusted_segments, hotend):
         """Test plotting with soft material."""
         soft_material = MaterialConfig(name="TPU Shore 30", shore_hardness=30)
-        fig = plot_comparison(
-            segments, adjusted_segments, hotend, soft_material, show=False
-        )
+        fig = plot_comparison(segments, adjusted_segments, hotend, soft_material, show=False)
         # Material info should appear in title
         assert "Shore 30" in fig._suptitle.get_text()
         plt.close(fig)

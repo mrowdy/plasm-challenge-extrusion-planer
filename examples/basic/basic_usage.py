@@ -47,7 +47,7 @@ def main():
     # response_time: How fast the hotend responds to changes (seconds)
     hotend = HotendConfig(
         max_volumetric_flow=12.0,  # mm³/s
-        response_time=0.05,         # seconds (50ms - typical standard hotend)
+        response_time=0.05,  # seconds (50ms - typical standard hotend)
     )
 
     # Material configuration (material properties)
@@ -60,8 +60,10 @@ def main():
     )
 
     print("\nInput Configuration:")
-    print(f"  Hotend: {hotend.max_volumetric_flow} mm³/s max flow, "
-          f"{hotend.response_time*1000:.0f}ms response")
+    print(
+        f"  Hotend: {hotend.max_volumetric_flow} mm³/s max flow, "
+        f"{hotend.response_time * 1000:.0f}ms response"
+    )
     print(f"  Material: {material.name} (Shore {material.shore_hardness})")
     print(f"  Segments: {len(segments)} moves to process\n")
 
@@ -73,8 +75,10 @@ def main():
 
     for i, seg in enumerate(segments):
         flow = seg.extrusion_rate()
-        print(f"  {i:<4} {seg.length:<10.1f} {seg.feed_rate:<12.1f} "
-              f"{seg.extrusion:<12.2f} {flow:<.2f}")
+        print(
+            f"  {i:<4} {seg.length:<10.1f} {seg.feed_rate:<12.1f} "
+            f"{seg.extrusion:<12.2f} {flow:<.2f}"
+        )
 
     # Create planner with 5-segment look-ahead window (default)
     planner = ExtrusionPlanner(lookahead_window=5)
@@ -92,8 +96,10 @@ def main():
 
     for i, seg in enumerate(adjusted_segments):
         flow = seg.extrusion_rate()
-        print(f"  {i:<4} {seg.length:<10.1f} {seg.feed_rate:<12.1f} "
-              f"{seg.extrusion:<12.2f} {flow:<.2f}")
+        print(
+            f"  {i:<4} {seg.length:<10.1f} {seg.feed_rate:<12.1f} "
+            f"{seg.extrusion:<12.2f} {flow:<.2f}"
+        )
 
     # Show adjustments made
     print("\nAdjustments Summary:")
@@ -103,8 +109,10 @@ def main():
     for i, (orig, adj) in enumerate(zip(segments, adjusted_segments)):
         if abs(orig.feed_rate - adj.feed_rate) > 0.1:
             reduction_pct = (1 - adj.feed_rate / orig.feed_rate) * 100
-            print(f"  Segment {i}: {orig.feed_rate:.1f} -> {adj.feed_rate:.1f} mm/min "
-                  f"({reduction_pct:.1f}% reduction)")
+            print(
+                f"  Segment {i}: {orig.feed_rate:.1f} -> {adj.feed_rate:.1f} mm/min "
+                f"({reduction_pct:.1f}% reduction)"
+            )
             adjustments_made = True
 
     if not adjustments_made:

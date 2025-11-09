@@ -28,8 +28,11 @@ class CompensationStrategy(Enum):
     COMBINED = "combined"
 
 
+# Standard hotend response time for normalization (50ms)
 BASELINE_RESPONSE_TIME = 0.05
+# Pressure level above 0.8 triggers compensation
 PRESSURE_THRESHOLD = 0.8
+# Compensation window extends 3x the response time
 COMPENSATION_WINDOW_MULTIPLIER = 3
 
 
@@ -42,11 +45,13 @@ class PressureModel:
         material: MaterialConfig,
         decay_model: DecayModel = DecayModel.EXPONENTIAL,
     ) -> None:
+        """Initialize pressure model with hotend and material properties."""
         self.hotend = hotend
         self.material = material
         self.decay_model = decay_model
         self.current_level = 0.0
         material_factor = calculate_pressure_compensation_factor(material.shore_hardness)
+        # Softer materials slow down pressure response
         self.decay_time_constant = hotend.response_time * material_factor
 
     def update(self, extrusion_rate: float, time_delta: float) -> None:
@@ -55,20 +60,26 @@ class PressureModel:
             return
 
         if extrusion_rate > 0:
+            # Pressure approaches steady state based on current extrusion rate
             steady_state = extrusion_rate / self.hotend.max_volumetric_flow
             if self.decay_model == DecayModel.EXPONENTIAL:
+                # Exponential approach: P(t) = P_steady + (P_current - P_steady) * e^(-t/τ)
                 approach_factor = math.exp(-time_delta / self.decay_time_constant)
                 self.current_level = (
                     steady_state + (self.current_level - steady_state) * approach_factor
                 )
             elif self.decay_model == DecayModel.LINEAR:
+                # Linear approach: ΔP/Δt = (P_steady - P_current) / τ
                 change_rate = (steady_state - self.current_level) / self.decay_time_constant
                 self.current_level += change_rate * time_delta
         else:
+            # Pressure decays during travel moves (zero extrusion)
             if self.decay_model == DecayModel.EXPONENTIAL:
+                # Exponential decay: P(t) = P_current * e^(-t/τ)
                 decay_factor = math.exp(-time_delta / self.decay_time_constant)
                 self.current_level *= decay_factor
             elif self.decay_model == DecayModel.LINEAR:
+                # Linear decay: P(t) = P_current * (1 - t/τ)
                 decay_amount = time_delta / self.decay_time_constant
                 self.current_level *= max(0.0, 1.0 - decay_amount)
 
@@ -101,15 +112,20 @@ def apply_pressure_compensation(
     for segment in segments:
         pressure_level = pressure.get_level()
 
+        # Apply slowdown when pressure exceeds threshold (0.8 = 80% of max)
         if pressure_level > PRESSURE_THRESHOLD and segment.extrusion > 0:
             if strategy == CompensationStrategy.MATERIAL_FACTOR:
+                # Slowdown based only on material softness
                 slowdown_factor = 1.0 / material_comp_factor
             elif strategy == CompensationStrategy.PRESSURE_LEVEL:
+                # Slowdown proportional to how much pressure exceeds threshold
                 normalized_pressure = (pressure_level - PRESSURE_THRESHOLD) / (
                     1.0 - PRESSURE_THRESHOLD
                 )
                 slowdown_factor = 1.0 - (0.5 * normalized_pressure)
             elif strategy == CompensationStrategy.COMBINED:
+                # Combine hotend response time and material softness
+                # Slower hotends + softer materials = more compensation needed
                 hotend_response_factor = hotend.response_time / BASELINE_RESPONSE_TIME
                 total_compensation = hotend_response_factor * material_comp_factor
                 slowdown_factor = 1.0 / max(1.0, total_compensation)

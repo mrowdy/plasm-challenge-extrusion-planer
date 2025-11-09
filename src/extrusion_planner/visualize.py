@@ -10,6 +10,7 @@ from extrusion_planner.pressure import PRESSURE_THRESHOLD, DecayModel, PressureM
 
 
 def _calculate_cumulative_time(segments: List[Segment]) -> np.ndarray:
+    """Calculate cumulative start times for each segment."""
     times = [0.0]
     for seg in segments[:-1]:
         times.append(times[-1] + seg.travel_time())
@@ -42,6 +43,7 @@ def plot_comparison(
     flows_orig = np.array([seg.extrusion_rate() for seg in original_segments])
     flows_adj = np.array([seg.extrusion_rate() for seg in adjusted_segments])
 
+    # Simulate pressure buildup through adjusted segments
     pressure_model = PressureModel(
         hotend=hotend, material=material, decay_model=DecayModel.EXPONENTIAL
     )
@@ -57,7 +59,7 @@ def plot_comparison(
         title = (
             f"Extrusion Planning Analysis\n"
             f"Hotend: {hotend.max_volumetric_flow:.1f} mm³/s, "
-            f"Response: {hotend.response_time*1000:.0f}ms | "
+            f"Response: {hotend.response_time * 1000:.0f}ms | "
             f"Material: {material.name} (Shore {material.shore_hardness})"
         )
 

@@ -13,6 +13,7 @@ class LookAheadBuffer:
     """Sliding window buffer for look-ahead segment analysis."""
 
     def __init__(self, window_size: int) -> None:
+        """Initialize look-ahead buffer with fixed window size."""
         if window_size <= 0:
             raise ValueError(f"window_size must be positive, got {window_size}")
         self._window_size = window_size
@@ -20,25 +21,32 @@ class LookAheadBuffer:
 
     @property
     def window_size(self) -> int:
+        """Get window size."""
         return self._window_size
 
     def add_segment(self, segment: Segment) -> None:
+        """Add segment to buffer (auto-evicts oldest if full)."""
         self._buffer.append(segment)
 
     def get_window(self) -> List[Segment]:
+        """Get current window as list."""
         return list(self._buffer)
 
     def advance(self) -> None:
+        """Remove oldest segment from buffer."""
         if self._buffer:
             self._buffer.popleft()
 
     def __len__(self) -> int:
+        """Get current buffer length."""
         return len(self._buffer)
 
     def is_full(self) -> bool:
+        """Check if buffer is at max capacity."""
         return len(self._buffer) == self._window_size
 
     def clear(self) -> None:
+        """Remove all segments from buffer."""
         self._buffer.clear()
 
 
@@ -52,12 +60,11 @@ class FlowPrediction:
     peak_segment_index: int
 
 
+# Flow above 80% of hotend limit is considered "high flow"
 HIGH_FLOW_THRESHOLD_RATIO = 0.8
 
 
-def predict_flow_window(
-    buffer: LookAheadBuffer, hotend: HotendConfig
-) -> FlowPrediction | None:
+def predict_flow_window(buffer: LookAheadBuffer, hotend: HotendConfig) -> FlowPrediction | None:
     """Predict flow requirements across look-ahead window."""
     window = buffer.get_window()
     if not window:
@@ -76,6 +83,7 @@ def predict_flow_window(
     peak_index = flows.index(max_flow)
     time_to_peak = cumulative_times[peak_index]
 
+    # High flow duration: sum of time spent above 80% of hotend capacity
     high_flow_threshold = hotend.max_volumetric_flow * HIGH_FLOW_THRESHOLD_RATIO
     high_flow_duration = sum(
         window[i].travel_time() for i, flow in enumerate(flows) if flow >= high_flow_threshold
