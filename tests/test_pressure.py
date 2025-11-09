@@ -423,8 +423,14 @@ class TestApplyPressureCompensation:
         fast_hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.01)
         slow_hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.1)
 
-        result_fast = apply_pressure_compensation(segments, fast_hotend, material)
-        result_slow = apply_pressure_compensation(segments, slow_hotend, material)
+        # Use MATERIAL_FACTOR strategy so both hotends compensate
+        # (COMBINED strategy might not compensate for fast hotends)
+        result_fast = apply_pressure_compensation(
+            segments, fast_hotend, material, strategy=CompensationStrategy.MATERIAL_FACTOR
+        )
+        result_slow = apply_pressure_compensation(
+            segments, slow_hotend, material, strategy=CompensationStrategy.MATERIAL_FACTOR
+        )
 
         # Both should compensate segment 1 immediately after the peak
         assert result_fast[1].feed_rate < segments[1].feed_rate
@@ -512,3 +518,232 @@ class TestApplyPressureCompensation:
 
         # Results should differ (different strategies)
         assert abs(result_material[1].feed_rate - result_pressure[1].feed_rate) > 0.01
+
+
+class TestCombinedCompensationStrategy:
+    """Tests for COMBINED compensation strategy (Task 7.2)."""
+
+    def test_combined_strategy_basic(self):
+        """COMBINED strategy should apply compensation based on both factors."""
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.05)
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Should apply compensation
+        assert result[1].feed_rate < segments[1].feed_rate
+
+    def test_combined_standard_hotend_soft_tpu(self):
+        """Standard hotend (0.08s) + Shore 30 TPU → maximum compensation."""
+        # This is the worst-case scenario from Task 7.2
+        # Formula: (0.08 / 0.05) * 1.56 = 2.50x compensation
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Should have strong compensation (low slowdown factor = low feed rate)
+        assert result[1].feed_rate < segments[1].feed_rate
+
+    def test_combined_induction_hotend_soft_tpu(self):
+        """Induction hotend (0.01s) + Shore 30 TPU → minimal compensation."""
+        # This is a fast hotend with soft material from Task 7.2
+        # Formula: (0.01 / 0.05) * 1.56 = 0.31x compensation (< 1.0)
+        # Should result in NO slowdown (slowdown_factor = 1.0)
+        hotend = HotendConfig(max_volumetric_flow=18.0, response_time=0.01)
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Fast hotend should need minimal or no compensation despite soft material
+        # Feed rate should be unchanged or only slightly reduced
+        assert result[1].feed_rate >= segments[1].feed_rate * 0.95
+
+    def test_combined_standard_hotend_pla(self):
+        """Standard hotend (0.08s) + PLA (Shore 75) → moderate compensation."""
+        # Formula: (0.08 / 0.05) * 1.2 = 1.92x compensation
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+        material = MaterialConfig(name="PLA", shore_hardness=75)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Should have moderate compensation
+        assert result[1].feed_rate < segments[1].feed_rate
+
+    def test_combined_induction_hotend_pla(self):
+        """Induction hotend (0.01s) + PLA (Shore 75) → minimal compensation."""
+        # This is the best-case scenario from CLAUDE.md
+        # Formula: (0.01 / 0.05) * 1.2 = 0.24x compensation (< 1.0)
+        # Should result in NO slowdown
+        hotend = HotendConfig(max_volumetric_flow=18.0, response_time=0.01)
+        material = MaterialConfig(name="PLA", shore_hardness=75)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Fast hotend + rigid material = minimal compensation needed
+        assert result[1].feed_rate >= segments[1].feed_rate * 0.95
+
+    def test_combined_scales_with_hotend_response(self):
+        """Slower hotends should apply more compensation than faster ones."""
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        # Fast hotend
+        fast_hotend = HotendConfig(max_volumetric_flow=18.0, response_time=0.01)
+        result_fast = apply_pressure_compensation(
+            segments, fast_hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Slow hotend
+        slow_hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+        result_slow = apply_pressure_compensation(
+            segments, slow_hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Slow hotend should have lower feed rate (more compensation)
+        assert result_slow[1].feed_rate < result_fast[1].feed_rate
+
+    def test_combined_scales_with_material_softness(self):
+        """Softer materials should apply more compensation than harder ones."""
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        # Rigid material
+        pla = MaterialConfig(name="PLA", shore_hardness=75)
+        result_pla = apply_pressure_compensation(
+            segments, hotend, pla, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Soft material
+        tpu = MaterialConfig(name="TPU", shore_hardness=30)
+        result_tpu = apply_pressure_compensation(
+            segments, hotend, tpu, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Soft material should have lower feed rate (more compensation)
+        assert result_tpu[1].feed_rate < result_pla[1].feed_rate
+
+    def test_combined_baseline_configuration(self):
+        """Baseline hotend (0.05s) + rigid material (Shore 100) → 1.0x compensation."""
+        # Formula: (0.05 / 0.05) * 1.0 = 1.0x compensation
+        # This is the reference configuration - should apply exactly 1.0x compensation
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.05)
+        material = MaterialConfig(name="Rigid", shore_hardness=100)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # With 1.0x compensation, slowdown_factor = 1.0 / 1.0 = 1.0 (no slowdown)
+        # Feed rate should be unchanged or very close
+        assert result[1].feed_rate >= segments[1].feed_rate * 0.99
+
+    def test_combined_vs_material_factor_strategy(self):
+        """COMBINED strategy should differ from MATERIAL_FACTOR for non-baseline hotends."""
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        # Use slow hotend (0.08s, not baseline 0.05s)
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+
+        result_combined = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+        result_material = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.MATERIAL_FACTOR
+        )
+
+        # COMBINED should account for hotend response time and apply MORE compensation
+        # (lower feed rate) than MATERIAL_FACTOR alone
+        assert result_combined[1].feed_rate < result_material[1].feed_rate
+
+    def test_combined_extreme_fast_hotend(self):
+        """Extremely fast hotend should never speed up (min slowdown = 1.0)."""
+        # Even with very low response time, we should never increase feed rate
+        hotend = HotendConfig(max_volumetric_flow=20.0, response_time=0.001)
+        material = MaterialConfig(name="PLA", shore_hardness=75)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        result = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Feed rate should never exceed original (no speedup)
+        assert result[1].feed_rate <= segments[1].feed_rate * 1.01
+
+    def test_combined_is_default_strategy(self):
+        """COMBINED should be the default strategy."""
+        hotend = HotendConfig(max_volumetric_flow=12.0, response_time=0.08)
+        material = MaterialConfig(name="TPU", shore_hardness=30)
+
+        segments = [
+            Segment(length=30.0, feed_rate=120.0, extrusion=210.0),  # 14 mm³/s
+            Segment(length=20.0, feed_rate=40.0, extrusion=26.0),  # 1.3 mm³/s
+        ]
+
+        # Call without specifying strategy (should use default)
+        result_default = apply_pressure_compensation(segments, hotend, material)
+
+        # Call with explicit COMBINED strategy
+        result_combined = apply_pressure_compensation(
+            segments, hotend, material, strategy=CompensationStrategy.COMBINED
+        )
+
+        # Should be identical (same strategy)
+        assert result_default[1].feed_rate == result_combined[1].feed_rate

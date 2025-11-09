@@ -25,7 +25,12 @@ class CompensationStrategy(Enum):
 
     MATERIAL_FACTOR = "material_factor"  # Use Shore hardness compensation factor
     PRESSURE_LEVEL = "pressure_level"  # Use dynamic pressure level (0.0-1.0)
+    COMBINED = "combined"  # Combine hotend response time and material factors
 
+
+# Baseline response time for normalizing hotend responsiveness (seconds)
+# This represents a reference standard hotend for comparison
+BASELINE_RESPONSE_TIME = 0.05
 
 # Pressure threshold above which compensation is applied
 PRESSURE_THRESHOLD = 0.8
@@ -92,9 +97,9 @@ class PressureModel:
             if self.decay_model == DecayModel.EXPONENTIAL:
                 # Exponential approach to steady state
                 approach_factor = math.exp(-time_delta / self.decay_time_constant)
-                self.current_level = steady_state + (
-                    self.current_level - steady_state
-                ) * approach_factor
+                self.current_level = (
+                    steady_state + (self.current_level - steady_state) * approach_factor
+                )
             elif self.decay_model == DecayModel.LINEAR:
                 # Linear approach to steady state
                 change_rate = (steady_state - self.current_level) / self.decay_time_constant
@@ -126,7 +131,7 @@ def apply_pressure_compensation(
     segments: List[Segment],
     hotend: HotendConfig,
     material: MaterialConfig,
-    strategy: CompensationStrategy = CompensationStrategy.MATERIAL_FACTOR,
+    strategy: CompensationStrategy = CompensationStrategy.COMBINED,
     decay_model: DecayModel = DecayModel.EXPONENTIAL,
 ) -> List[Segment]:
     """
@@ -152,6 +157,7 @@ def apply_pressure_compensation(
         3. Compensation strength determined by selected strategy:
            - MATERIAL_FACTOR: Fixed based on Shore hardness
            - PRESSURE_LEVEL: Dynamic based on current pressure level
+           - COMBINED: Scales with both hotend response time and material softness
         4. Creates smooth transitions as pressure decays
     """
     if not segments:
@@ -183,6 +189,22 @@ def apply_pressure_compensation(
                     1.0 - PRESSURE_THRESHOLD
                 )
                 slowdown_factor = 1.0 - (0.5 * normalized_pressure)
+            elif strategy == CompensationStrategy.COMBINED:
+                # Combine hotend response time and material factors
+                # Formula: total_compensation = (response_time / baseline) * material_factor
+                # - Slower hotends (high response_time) → more compensation
+                # - Softer materials (low Shore, high material_factor) → more compensation
+                # - Fast hotends (low response_time) → less compensation
+                hotend_response_factor = hotend.response_time / BASELINE_RESPONSE_TIME
+                total_compensation = hotend_response_factor * material_comp_factor
+
+                # Convert to slowdown factor
+                # Use max(1.0, ...) to prevent speeding up for very fast hotends
+                # Examples:
+                # - total_compensation = 2.50 → slowdown = 0.40 (slow to 40% speed)
+                # - total_compensation = 0.31 → slowdown = 1.0 (no slowdown)
+                # - total_compensation = 1.56 → slowdown = 0.64 (slow to 64% speed)
+                slowdown_factor = 1.0 / max(1.0, total_compensation)
             else:
                 slowdown_factor = 1.0
 

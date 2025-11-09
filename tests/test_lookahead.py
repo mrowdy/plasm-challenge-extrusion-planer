@@ -182,9 +182,7 @@ class TestLookAheadBuffer:
     def test_large_window_size(self):
         """Test buffer with large window size."""
         buffer = LookAheadBuffer(window_size=100)
-        segments = [
-            Segment(length=float(i), feed_rate=100.0, extrusion=0.5) for i in range(1, 51)
-        ]
+        segments = [Segment(length=float(i), feed_rate=100.0, extrusion=0.5) for i in range(1, 51)]
 
         for seg in segments:
             buffer.add_segment(seg)
@@ -198,9 +196,7 @@ class TestLookAheadBuffer:
     def test_sliding_window_behavior(self):
         """Test buffer maintains sliding window as segments are added and advanced."""
         buffer = LookAheadBuffer(window_size=3)
-        segments = [
-            Segment(length=float(i), feed_rate=100.0, extrusion=0.5) for i in range(1, 6)
-        ]
+        segments = [Segment(length=float(i), feed_rate=100.0, extrusion=0.5) for i in range(1, 6)]
 
         # Fill buffer
         buffer.add_segment(segments[0])

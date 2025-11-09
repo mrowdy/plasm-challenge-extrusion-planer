@@ -103,9 +103,7 @@ class FlowPrediction:
 HIGH_FLOW_THRESHOLD_RATIO = 0.8
 
 
-def predict_flow_window(
-    buffer: LookAheadBuffer, hotend: HotendConfig
-) -> FlowPrediction | None:
+def predict_flow_window(buffer: LookAheadBuffer, hotend: HotendConfig) -> FlowPrediction | None:
     """
     Predict flow requirements across the look-ahead window.
 

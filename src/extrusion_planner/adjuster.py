@@ -164,4 +164,3 @@ def apply_preemptive_slowdown(
             adjusted.append(segment)
 
     return adjusted
-
