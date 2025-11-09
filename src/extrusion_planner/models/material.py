@@ -2,6 +2,10 @@
 
 from dataclasses import dataclass
 
+# Maximum additional compensation factor for the softest materials (Shore 0)
+# This means Shore 0 material gets 1.0 + 0.8 = 1.8x compensation
+MAX_ADDITIONAL_COMPENSATION = 0.8
+
 
 def calculate_pressure_compensation_factor(shore_hardness: float) -> float:
     """Calculate pressure compensation factor from Shore hardness.
@@ -33,7 +37,7 @@ def calculate_pressure_compensation_factor(shore_hardness: float) -> float:
     if not 0 <= shore_hardness <= 100:
         raise ValueError(f"shore_hardness must be between 0 and 100, got {shore_hardness}")
 
-    return 1.0 + (1.0 - shore_hardness / 100) * 0.8
+    return 1.0 + (1.0 - shore_hardness / 100) * MAX_ADDITIONAL_COMPENSATION
 
 
 @dataclass(frozen=True)
