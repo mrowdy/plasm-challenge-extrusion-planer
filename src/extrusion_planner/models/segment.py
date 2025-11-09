@@ -1,4 +1,4 @@
-"""Core data models for extrusion planning."""
+"""Segment model for extrusion planning."""
 
 from dataclasses import dataclass
 
