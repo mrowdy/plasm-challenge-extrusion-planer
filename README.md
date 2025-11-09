@@ -11,7 +11,8 @@ uv sync
 ## Development
 
 ```bash
-uv run ruff check .   # Lint
-uv run ruff format .  # Format
+uv run pytest tests/ -v  # Run tests
+uv run ruff check .      # Lint
+uv run ruff format .     # Format
 ```
 
