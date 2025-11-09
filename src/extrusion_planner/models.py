@@ -2,15 +2,22 @@
 
 from dataclasses import dataclass
 
+# Time conversion constant
+SECONDS_PER_MINUTE = 60.0
 
-@dataclass
+
+@dataclass(frozen=True)
 class Segment:
     """Represents a single extrusion segment in a print path.
+
+    Note:
+        For travel moves (non-printing movements), set extrusion=0.
 
     Attributes:
         length: Segment length in millimeters
         feed_rate: Movement speed in millimeters per minute
-        extrusion: Total extrusion volume for this segment in cubic millimeters
+        extrusion: Total extrusion volume for this segment in cubic millimeters.
+            Set to 0 for travel moves (non-printing movements).
     """
 
     length: float
@@ -32,12 +39,14 @@ class Segment:
         Returns:
             Travel time in seconds
         """
-        return (self.length / self.feed_rate) * 60.0
+        return (self.length / self.feed_rate) * SECONDS_PER_MINUTE
 
     def extrusion_rate(self) -> float:
         """Calculate the volumetric extrusion rate in cubic millimeters per second.
 
         Returns:
-            Extrusion rate in mm³/s
+            Extrusion rate in mm³/s. Returns 0.0 for travel moves (extrusion=0).
         """
+        if self.extrusion == 0:
+            return 0.0
         return self.extrusion / self.travel_time()
